@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Builder (Dual Engine)</title>
+    <title>AI Blog Builder (SEO Edition)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -18,7 +18,6 @@
         .btn-green { background: #27ae60; } 
         .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; }
         .btn-yellow { background: #f1c40f; color: #333; }
-        .btn-dark { background: #34495e; }
 
         .hidden { display: none; }
         .box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e1e4e8; }
@@ -33,7 +32,6 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         .badge-draft { background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-        .badge-success { background: #2ecc71; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 
         .preview-img { max-height: 150px; display: none; margin: 10px auto; border-radius: 5px; border: 1px solid #ddd; }
     </style>
@@ -41,7 +39,7 @@
 <body>
 
 <div class="container">
-    <h2>🚀 Admin Sekolah (Dual Engine)</h2>
+    <h2>🚀 Admin Sekolah (SEO Edition)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" style="text-align: center; padding: 40px;">
@@ -53,8 +51,8 @@
         <div class="box">
             <label style="font-size:12px; font-weight:bold;">Pilih Mesin AI:</label>
             <div class="provider-switch">
-                <div id="prov_gemini" class="provider-btn active" onclick="switchProvider('GEMINI')">Google Gemini<br><small>(Bisa Baca Gambar)</small></div>
-                <div id="prov_groq" class="provider-btn" onclick="switchProvider('GROQ')">Groq Cloud<br><small>(Super Cepat - Teks)</small></div>
+                <div id="prov_gemini" class="provider-btn active" onclick="switchProvider('GEMINI')">Google Gemini<br><small>(Analisa Gambar)</small></div>
+                <div id="prov_groq" class="provider-btn" onclick="switchProvider('GROQ')">Groq Cloud<br><small>(Super Cepat)</small></div>
             </div>
 
             <div style="display:flex; gap:5px; margin-bottom:5px;">
@@ -69,15 +67,15 @@
         </div>
 
         <div class="box">
-            <input type="text" id="judul" placeholder="Judul Artikel">
+            <input type="text" id="judul" placeholder="Judul Artikel (Contoh: Prestasi Lomba Puisi)">
             
             <div id="image_input_container">
-                <label style="font-size:12px; color:#666;">Gambar Referensi (Untuk Gemini membaca konteks):</label>
+                <label style="font-size:12px; color:#666;">Gambar Referensi (Hanya untuk dibaca AI):</label>
                 <input type="file" id="file_gambar" accept="image/*" onchange="previewImage(this)">
                 <img id="imgPreview" class="preview-img">
             </div>
             <div id="groq_warning" class="hidden" style="color: #e67e22; font-size: 12px; margin-bottom: 10px;">
-                ⚠️ Groq Mode: Gambar diabaikan, AI hanya membaca Judul & Deskripsi.
+                ⚠️ Groq Mode: Hanya membaca teks judul & deskripsi (Tidak baca gambar).
             </div>
 
             <select id="cat_select" onchange="toggleManualCat()" style="margin-top:10px;">
@@ -89,10 +87,10 @@
             </select>
             <input type="text" id="cat_manual" class="hidden" placeholder="Nama Kategori...">
             
-            <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi tambahan / Poin-poin tutorial..."></textarea>
+            <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi/Poin penting artikel..."></textarea>
             <select id="mode_penulisan"><option value="DEFAULT">Berita</option><option value="TUTORIAL">Tutorial</option><option value="PROFIL">Profil</option></select>
             
-            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel</button>
+            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel SEO</button>
         </div>
 
         <div class="box">
@@ -135,7 +133,17 @@
                 }
             }
         });
-        tinymce.init({ selector: '#kontenEditor', height: 400, plugins: 'lists code', toolbar: 'undo redo | bold italic | bullist numlist | code', branding: false });
+        
+        // TINYMCE DENGAN WORD COUNT
+        tinymce.init({ 
+            selector: '#kontenEditor', 
+            height: 500, 
+            plugins: 'lists code wordcount', // Tambahkan plugin 'wordcount'
+            toolbar: 'undo redo | bold italic | bullist numlist | code | wordcount', // Tampilkan di toolbar juga jika mau
+            branding: false,
+            statusbar: true, // Pastikan status bar (bawah) nyala
+            resize: true
+        });
     };
 
     function handleAuthClick() { tokenClient.requestAccessToken(); }
@@ -148,11 +156,9 @@
         const imgContainer = document.getElementById('image_input_container');
         const groqWarn = document.getElementById('groq_warning');
 
-        // UI Updates
         document.querySelectorAll('.provider-btn').forEach(el => el.classList.remove('active'));
         document.getElementById('prov_' + provider.toLowerCase()).classList.add('active');
 
-        // Logic Updates
         if (provider === 'GEMINI') {
             input.placeholder = "Tempel Google Gemini API Key...";
             if(localStorage.getItem('gemini_api_key')) input.value = localStorage.getItem('gemini_api_key');
@@ -164,8 +170,6 @@
             imgContainer.classList.add('hidden');
             groqWarn.classList.remove('hidden');
         }
-        
-        // Reset Model Select
         document.getElementById('model_select').innerHTML = "<option disabled selected>-- Klik Cek AI --</option>";
     }
 
@@ -194,7 +198,7 @@
         }
     }
 
-    // --- FETCH MODELS (DUAL ENGINE) ---
+    // --- FETCH MODELS ---
     async function fetchModels() {
         const key = document.getElementById('api_key_input').value;
         const sel = document.getElementById('model_select');
@@ -205,7 +209,6 @@
 
         try {
             if (currentProvider === 'GEMINI') {
-                // FETCH GEMINI
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
                 const data = await res.json();
                 if(data.models) {
@@ -217,7 +220,6 @@
                     alert("Gemini Connected!");
                 } else throw new Error("Invalid Key");
             } else {
-                // FETCH GROQ
                 const res = await fetch('https://api.groq.com/openai/v1/models', {
                     headers: { 'Authorization': `Bearer ${key}` }
                 });
@@ -225,7 +227,7 @@
                 if(data.data) {
                     sel.innerHTML = "";
                     data.data.forEach(m => { 
-                        if(!m.id.includes('whisper')) { // Filter audio models
+                        if(!m.id.includes('whisper')) { 
                             let o=document.createElement('option'); o.value=m.id; o.text=m.id; sel.appendChild(o);
                         }
                     });
@@ -233,11 +235,11 @@
                     alert("Groq Connected!");
                 } else throw new Error("Invalid Key");
             }
-        } catch(e) { alert("Gagal koneksi API. Cek Key."); }
+        } catch(e) { alert("Gagal koneksi API."); }
         btn.innerText = "Cek AI"; btn.disabled = false;
     }
 
-    // --- GENERATE (DUAL ENGINE) ---
+    // --- GENERATE (SEO OPTIMIZED) ---
     async function generateContent() {
         const judul = document.getElementById('judul').value;
         const desc = document.getElementById('desc_gambar').value;
@@ -246,31 +248,35 @@
         const btn = document.getElementById('btnGen');
 
         if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
-        btn.innerText = `⏳ Meracik (${currentProvider})...`; btn.disabled = true;
+        btn.innerText = `⏳ Meracik SEO (${currentProvider})...`; btn.disabled = true;
 
-        // PROMPT STRICT
+        // PROMPT SEO STRICT
         const systemPrompt = `
-        BERTINDAKLAH SEBAGAI MESIN PEMBUAT KONTEN HTML (STRICT MODE).
-        1. OUTPUT HANYA KODE HTML (Raw HTML).
-        2. JANGAN ADA TEKS PEMBUKA (Tentu, Berikut, dll) atau PENUTUP.
-        3. JANGAN GUNAKAN MARKDOWN (\`\`\`).
-        4. JANGAN GUNAKAN BINTANG (**). PAKAI TAG <b>.
-        5. Mulai langsung dengan tag <h3> atau <p>.
-        6. Gunakan Bahasa Indonesia Formal & Ramah.
-        `;
+        BERTINDAKLAH SEBAGAI PAKAR SEO & PENULIS BLOG SEKOLAH PROFESIONAL.
         
-        const userPrompt = `TOPIK: "${judul}". \nKONTEKS: "${desc}".`;
+        INSTRUKSI UTAMA:
+        1. Buat artikel HTML MURNI (tanpa markdown \`\`\`).
+        2. Panjang artikel WAJIB MINIMAL 500 KATA (SEO Friendly).
+        3. Gaya bahasa: Formal, edukatif, ramah, dan memotivasi.
+        4. Struktur wajib:
+           - <h3> untuk sub-judul (gunakan 3-4 sub-judul).
+           - <p> untuk paragraf (minimal 3 kalimat per paragraf).
+           - <ul> atau <ol> untuk daftar poin penting.
+        5. JANGAN ADA KATA PEMBUKA/PENUTUP (Langsung ke isi artikel).
+        6. JANGAN pakai bintang (**). Gunakan <b> untuk bold.
+        
+        TOPIK: "${judul}"
+        KONTEKS TAMBAHAN: "${desc}"
+        `;
 
         let resultText = "";
 
         try {
             if (currentProvider === 'GEMINI') {
-                // --- LOGIC GEMINI ---
-                let parts = [{ text: systemPrompt + "\n" + userPrompt }];
+                let parts = [{ text: systemPrompt }];
                 if (globalBase64Img && document.getElementById('file_gambar').files.length > 0) {
                     parts.push({ inline_data: { mime_type: "image/jpeg", data: globalBase64Img } });
                 }
-                
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -280,30 +286,24 @@
                 if(data.candidates) resultText = data.candidates[0].content.parts[0].text;
 
             } else {
-                // --- LOGIC GROQ ---
                 const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         model: model,
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: userPrompt }
-                        ],
-                        temperature: 0.7
+                        messages: [{ role: "system", content: systemPrompt }],
+                        temperature: 0.7,
+                        max_tokens: 2048 // Maksimalkan output token agar panjang
                     })
                 });
                 const data = await res.json();
                 if(data.choices) resultText = data.choices[0].message.content;
             }
 
-            // CLEANING RESULT
+            // CLEANING
             if(resultText) {
                 resultText = resultText.replace(/```html/gi, '').replace(/```/g, '');
-                resultText = resultText.replace(/^(Tentu|Baik|Berikut|Oke|Halo|Ini adalah).+?(\n|<)/si, '');
+                resultText = resultText.replace(/^(Tentu|Baik|Berikut|Oke|Halo).+?(\n|<)/si, '');
                 resultText = resultText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                 
                 tinymce.get('kontenEditor').setContent(resultText);
@@ -311,10 +311,10 @@
             }
 
         } catch(e) { alert("Error Generate: " + e.message); }
-        btn.innerText = "✨ Generate Artikel"; btn.disabled = false;
+        btn.innerText = "✨ Generate Artikel SEO"; btn.disabled = false;
     }
 
-    // --- POST TO BLOGGER (DRAFT ONLY) ---
+    // --- POST TO BLOGGER ---
     async function postToBlogger(isDraft) {
         const blogId = document.getElementById('blog_select').value;
         const judul = document.getElementById('judul').value;
@@ -346,7 +346,6 @@
         btn.innerText = "📂 Simpan ke DRAFT Blogger"; btn.disabled = false;
     }
 
-    // --- UTILS ---
     function addToHistory(judul, url, isDraft) {
         let history = JSON.parse(localStorage.getItem('post_history') || "[]");
         let link = url ? url : "https://draft.blogger.com"; 
