@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Builder (v15 - Thumbnail Fix)</title>
+    <title>AI Blog Builder (Cloudinary Edition)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -39,7 +39,7 @@
 <body>
 
 <div class="container">
-    <h2>🚀 AI Blog Builder (v15 - Diagnostic)</h2>
+    <h2>🚀 AI Blog Builder (Cloudinary Edition)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" class="box" style="text-align: center; padding: 50px;">
@@ -52,15 +52,19 @@
         <div class="box">
             <h4>🔑 Konfigurasi API</h4>
             <label style="font-size:12px; font-weight:bold;">1. Google Gemini API Key:</label>
-            <div style="display: flex; gap: 10px; margin-bottom:10px;">
+            <div style="display: flex; gap: 10px; margin-bottom:15px;">
                 <input type="password" id="api_key_input" placeholder="Tempel Gemini API Key..." style="flex: 2; margin-bottom:0;">
                 <button onclick="fetchModels()" id="btn_cek" class="btn btn-orange" style="margin-top:0;">Cek AI</button>
             </div>
 
-            <label style="font-size:12px; font-weight:bold;">2. ImgBB API Key (Wajib untuk Thumbnail):</label>
-            <input type="password" id="imgbb_key_input" placeholder="Tempel API Key ImgBB...">
+            <label style="font-size:12px; font-weight:bold;">2. Cloudinary (Hosting Gambar Anti-Blokir):</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                <input type="text" id="cloud_name_input" placeholder="Cloud Name (Contoh: dxyz123)..." style="flex: 1;">
+                <input type="text" id="upload_preset_input" placeholder="Upload Preset (Contoh: ml_default)..." style="flex: 1;">
+            </div>
+            <small style="color:#666;">*Daftar gratis di Cloudinary.com. Pastikan preset mode "Unsigned".</small>
             
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <div style="flex: 1;">
                     <select id="model_select" style="margin-bottom: 0;"><option disabled selected>-- Pilih AI --</option></select>
                 </div>
@@ -74,17 +78,17 @@
             <h4>📝 Buat Konten</h4>
             <input type="text" id="judul" placeholder="Judul Artikel (Contoh: Juara Lomba Marching Band)">
 
-            <label><b>Gambar Thumbnail (Upload Dulu):</b></label>
+            <label><b>Gambar Thumbnail:</b></label>
             <div class="img-control">
                 <div style="flex: 1;">
                     <input type="file" id="file_gambar" accept="image/*" style="margin-bottom: 5px;">
-                    <button onclick="manualUpload()" class="btn btn-purple" id="btnUploadManual">⬆️ Upload ke ImgBB</button>
+                    <button onclick="uploadToCloudinary()" class="btn btn-purple" id="btnUploadManual">⬆️ Upload ke Cloudinary</button>
                     <div id="url_result" class="url-display"></div>
                     <input type="hidden" id="final_img_url">
                 </div>
                 <img id="imgPreview">
             </div>
-            <small style="color:#666; margin-bottom:15px; display:block;">*Klik tombol Ungu untuk memastikan gambar ter-upload dan dapat link.</small>
+            <small style="color:#666; margin-bottom:15px; display:block;">*Klik tombol Ungu. Jika sukses, link gambar akan muncul.</small>
 
             <select id="cat_select" onchange="toggleManualCat()" style="margin-top:10px;">
                 <option value="" disabled selected>-- Pilih Kategori --</option>
@@ -105,7 +109,7 @@
                 <option value="PROFIL">👤 Profil Tokoh</option>
             </select>
 
-            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel & Masukkan Gambar</button>
+            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel & Embed Gambar</button>
         </div>
 
         <div class="box">
@@ -127,9 +131,12 @@
 
     window.onload = function() {
         const savedKey = localStorage.getItem('gemini_api_key');
-        const savedImgbb = localStorage.getItem('imgbb_api_key');
+        const savedCloud = localStorage.getItem('cloudinary_name');
+        const savedPreset = localStorage.getItem('cloudinary_preset');
+        
         if (savedKey) document.getElementById('api_key_input').value = savedKey;
-        if (savedImgbb) document.getElementById('imgbb_key_input').value = savedImgbb;
+        if (savedCloud) document.getElementById('cloud_name_input').value = savedCloud;
+        if (savedPreset) document.getElementById('upload_preset_input').value = savedPreset;
 
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
@@ -157,41 +164,49 @@
         location.reload();
     }
 
-    // --- FITUR UPLOAD MANUAL (DIAGNOSTIC) ---
-    async function manualUpload() {
+    // --- UPLOAD TO CLOUDINARY (ANTI BLOKIR) ---
+    async function uploadToCloudinary() {
         const fileInput = document.getElementById('file_gambar');
+        const cloudName = document.getElementById('cloud_name_input').value;
+        const uploadPreset = document.getElementById('upload_preset_input').value;
         const btn = document.getElementById('btnUploadManual');
         const resultDiv = document.getElementById('url_result');
         const preview = document.getElementById('imgPreview');
-        const imgbbKey = document.getElementById('imgbb_key_input').value;
 
         if (fileInput.files.length === 0) return alert("Pilih file gambar dulu!");
-        if (!imgbbKey) return alert("API Key ImgBB kosong!");
+        if (!cloudName || !uploadPreset) return alert("Isi Cloud Name & Upload Preset dulu!");
 
-        btn.innerText = "⏳ Uploading..."; btn.disabled = true;
-        localStorage.setItem('imgbb_api_key', imgbbKey);
+        btn.innerText = "⏳ Uploading ke Cloudinary..."; btn.disabled = true;
+        
+        // Simpan Credentials
+        localStorage.setItem('cloudinary_name', cloudName);
+        localStorage.setItem('cloudinary_preset', uploadPreset);
 
         const formData = new FormData();
-        formData.append("image", fileInput.files[0]);
+        formData.append("file", fileInput.files[0]);
+        formData.append("upload_preset", uploadPreset);
 
         try {
-            const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: "POST", body: formData });
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                method: "POST",
+                body: formData
+            });
             const data = await res.json();
             
-            if (data.success) {
-                const url = data.data.url;
-                document.getElementById('final_img_url').value = url; // Simpan URL
-                resultDiv.innerHTML = `✅ Sukses: <a href="${url}" target="_blank">${url}</a>`;
+            if (data.secure_url) {
+                const url = data.secure_url;
+                document.getElementById('final_img_url').value = url;
+                resultDiv.innerHTML = `✅ Sukses: <a href="${url}" target="_blank" style="color:#27ae60;">Lihat Gambar</a>`;
                 preview.src = url;
                 preview.style.display = 'block';
-                btn.innerText = "✅ Ter-upload";
+                btn.innerText = "✅ Ter-upload Aman!";
             } else {
-                alert("Gagal Upload: " + data.error.message);
-                btn.innerText = "⬆️ Upload ke ImgBB";
+                alert("Gagal Upload: " + (data.error?.message || "Cek Preset/Cloud Name"));
+                btn.innerText = "⬆️ Upload Ulang";
             }
         } catch (e) {
-            alert("Error Koneksi ImgBB");
-            btn.innerText = "⬆️ Upload ke ImgBB";
+            alert("Error Koneksi Cloudinary");
+            btn.innerText = "⬆️ Upload Ulang";
         }
         btn.disabled = false;
     }
@@ -202,14 +217,14 @@
         const apiKey = document.getElementById('api_key_input').value;
         const model = document.getElementById('model_select').value;
         const mode = document.getElementById('mode_penulisan').value;
-        const imgUrl = document.getElementById('final_img_url').value; // Ambil URL dari upload manual
+        const imgUrl = document.getElementById('final_img_url').value;
         const btn = document.getElementById('btnGen');
 
         if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
         
         // Peringatan jika gambar belum diupload
         if(document.getElementById('file_gambar').files.length > 0 && !imgUrl) {
-            const confirmGen = confirm("Gambar belum di-upload (Tombol Ungu). Artikel akan dibuat tanpa gambar. Lanjut?");
+            const confirmGen = confirm("Gambar belum di-upload ke Cloudinary (Tombol Ungu). Artikel akan dibuat tanpa gambar. Lanjut?");
             if(!confirmGen) return;
         }
 
@@ -233,28 +248,29 @@
             
             if(data.candidates) {
                 let aiText = data.candidates[0].content.parts[0].text;
-                aiText = aiText.replace(/```html/g, '').replace(/```/g, '').replace(/\*\*/g, '');
+                aiText = aiText.replace(/```html/g, '').replace(/```/g, '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*/g, '');
                 
                 let finalContent = "";
-                // Embed Gambar (Versi Paksa Thumbnail)
-if(imgUrl) {
-    // Kita taruh tag IMG di paling depan, tanpa DIV pembungkus, 
-    // dan kita kasih tag 'noscript' biar robot template lebih gampang baca.
-    finalContent = `
-    <img border="0" src="${imgUrl}" alt="${judul}" style="display:block; max-width:100%; height:auto; margin:0 auto 20px auto;" />
-    <br/>
-    <p style="text-align:center; font-size:small; font-style:italic;">${desc}</p>
-    <hr/>
-    ` + aiText;
-} else { finalContent = aiText; }
+                
+                // Embed Gambar (Struktur Paling Sederhana agar dibaca Blogger)
+                if(imgUrl) {
+                    finalContent = `
+                    <div style="display:block; text-align:center; margin-bottom:20px;">
+                        <img src="${imgUrl}" alt="${judul}" style="max-width:100%; height:auto;" border="0" />
+                        <br/>
+                        <span style="font-size:small; font-style:italic;">${desc}</span>
+                    </div>
+                    <hr/>
+                    ` + aiText;
+                } else { finalContent = aiText; }
 
                 tinymce.get('kontenEditor').setContent(finalContent);
             }
         } catch(e) { alert("Error Network AI"); }
-        btn.innerText = "✨ Generate Artikel & Masukkan Gambar"; btn.disabled = false;
+        btn.innerText = "✨ Generate Artikel & Embed Gambar"; btn.disabled = false;
     }
 
-    // --- FUNGSI PENDUKUNG LAINNYA ---
+    // --- FUNGSI PENDUKUNG ---
     async function fetchUserBlogs() {
         const blogSelect = document.getElementById('blog_select');
         blogSelect.innerHTML = '<option disabled>Loading...</option>';
@@ -332,4 +348,3 @@ if(imgUrl) {
 
 </body>
 </html>
-
