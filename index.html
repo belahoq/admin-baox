@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Admin (Final Fix)</title>
+    <title>AI Blog Builder (Draft Mode)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -11,20 +11,31 @@
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
         input, select, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color:white; margin-top:5px; }
-        .btn-blue { background: #3498db; } .btn-green { background: #27ae60; } .btn-purple { background: #9b59b6; } .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color:white; margin-top:5px; transition: 0.2s; }
+        .btn:hover { filter: brightness(0.9); }
+        .btn-blue { background: #3498db; } 
+        .btn-green { background: #27ae60; } 
+        .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; }
+        .btn-yellow { background: #f1c40f; color: #333; }
+
         .hidden { display: none; }
         .box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e1e4e8; }
-        .img-control { display: flex; gap: 10px; align-items: center; background: #fff; padding: 10px; border: 1px dashed #ccc; border-radius: 5px; }
-        #imgPreview { max-height: 100px; display: none; border-radius: 4px; }
-        .alert { padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
-        .alert-success { background: #d4edda; color: #155724; } .alert-error { background: #f8d7da; color: #721c24; }
+        
+        /* History Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .badge-draft { background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        .badge-success { background: #2ecc71; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+        .preview-img { max-height: 150px; display: none; margin: 10px auto; border-radius: 5px; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🚀 Admin Sekolah (Cloudinary)</h2>
+    <h2>🚀 Admin Sekolah (Draft Mode)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" style="text-align: center; padding: 40px;">
@@ -32,16 +43,13 @@
     </div>
 
     <div id="app-section" class="hidden">
+        
         <div class="box">
             <div style="display:flex; gap:5px; margin-bottom:5px;">
                 <input type="password" id="api_key_input" placeholder="Gemini API Key..." style="flex:1;">
                 <button onclick="fetchModels()" id="btn_cek" class="btn btn-orange" style="margin:0;">Cek AI</button>
             </div>
-            <input type="password" id="imgbb_key_input" placeholder="Cloudinary API Environment Variable (Opsional, sudah auto-save)...">
-            <input type="hidden" id="cloud_name" value=""> 
-            <input type="hidden" id="upload_preset" value="">
-            
-            <div style="display:flex; gap:5px; margin-top:5px;">
+            <div style="display:flex; gap:5px;">
                 <select id="model_select" style="margin:0;"><option disabled selected>-- Pilih AI --</option></select>
                 <select id="blog_select" style="margin:0;"><option disabled selected>Loading Blog...</option></select>
             </div>
@@ -50,15 +58,9 @@
         <div class="box">
             <input type="text" id="judul" placeholder="Judul Artikel">
             
-            <div class="img-control">
-                <div style="flex:1;">
-                    <input type="file" id="file_gambar" accept="image/*">
-                    <button onclick="uploadToCloudinary()" class="btn btn-purple" id="btnUpload">⬆️ Upload Gambar</button>
-                    <input type="hidden" id="final_img_url">
-                    <div id="url_display" style="font-size:11px; color:green; margin-top:5px;"></div>
-                </div>
-                <img id="imgPreview">
-            </div>
+            <label style="font-size:12px; color:#666;">Gambar Referensi (Hanya untuk AI, tidak diupload):</label>
+            <input type="file" id="file_gambar" accept="image/*" onchange="previewImage(this)">
+            <img id="imgPreview" class="preview-img">
 
             <select id="cat_select" onchange="toggleManualCat()" style="margin-top:10px;">
                 <option value="" disabled selected>-- Kategori --</option>
@@ -69,15 +71,26 @@
             </select>
             <input type="text" id="cat_manual" class="hidden" placeholder="Nama Kategori...">
             
-            <textarea id="desc_gambar" style="height:60px; margin-top:10px;" placeholder="Deskripsi gambar..."></textarea>
+            <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi tambahan..."></textarea>
             <select id="mode_penulisan"><option value="DEFAULT">Berita</option><option value="TUTORIAL">Tutorial</option><option value="PROFIL">Profil</option></select>
+            
             <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel</button>
         </div>
 
         <div class="box">
             <textarea id="kontenEditor"></textarea>
-            <button onclick="postToBlogger()" class="btn btn-blue" style="margin-top:10px;">🚀 Publish</button>
+            
+            <button onclick="postToBlogger(true)" class="btn btn-yellow" style="margin-top:15px;">📂 Simpan ke DRAFT Blogger</button>
+            
             <center style="margin-top:10px;"><a href="#" onclick="doLogout()" style="color:red; text-decoration:none;">Logout</a></center>
+        </div>
+
+        <div class="box" id="history-box">
+            <h4>📜 Riwayat Generate (Sesi Ini)</h4>
+            <table id="historyTable">
+                <thead><tr><th>Jam</th><th>Judul</th><th>Status</th><th>Link</th></tr></thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -86,12 +99,11 @@
     const CLIENT_ID = '763331219607-vv1dd6jksep9utgs337idu67i57j6baa.apps.googleusercontent.com';
     const SCOPES = 'https://www.googleapis.com/auth/blogger';
     let tokenClient, accessToken = null;
+    let globalBase64Img = ""; // Hanya untuk dikirim ke Gemini
 
     window.onload = function() {
         if(localStorage.getItem('gemini_api_key')) document.getElementById('api_key_input').value = localStorage.getItem('gemini_api_key');
-        if(localStorage.getItem('cloud_name')) document.getElementById('cloud_name').value = localStorage.getItem('cloud_name');
-        if(localStorage.getItem('upload_preset')) document.getElementById('upload_preset').value = localStorage.getItem('upload_preset');
-
+        
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: (resp) => {
@@ -100,54 +112,40 @@
                     document.getElementById('login-section').classList.add('hidden');
                     document.getElementById('app-section').classList.remove('hidden');
                     fetchUserBlogs();
+                    loadHistory();
                 }
             }
         });
-        tinymce.init({ selector: '#kontenEditor', height: 400, plugins: 'image link lists code', toolbar: 'undo redo | bold italic | alignleft aligncenter | image link | bullist numlist', branding: false });
+        tinymce.init({ selector: '#kontenEditor', height: 400, plugins: 'lists code', toolbar: 'undo redo | bold italic | bullist numlist | code', branding: false });
     };
 
     function handleAuthClick() { tokenClient.requestAccessToken(); }
     function doLogout() { google.accounts.oauth2.revoke(accessToken, ()=>{}); location.reload(); }
 
-    async function uploadToCloudinary() {
-        // Cek data Cloudinary
-        let cName = document.getElementById('cloud_name').value;
-        let cPreset = document.getElementById('upload_preset').value;
-
-        if(!cName || !cPreset) {
-            // Prompt input jika belum ada
-            cName = prompt("Masukkan Cloud Name Cloudinary Anda:");
-            cPreset = prompt("Masukkan Upload Preset (Unsigned) Cloudinary Anda:");
-            if(cName && cPreset) {
-                localStorage.setItem('cloud_name', cName);
-                localStorage.setItem('upload_preset', cPreset);
-                document.getElementById('cloud_name').value = cName;
-                document.getElementById('upload_preset').value = cPreset;
-            } else { return alert("Data Cloudinary wajib diisi!"); }
+    // --- PREVIEW & CONVERT IMAGE TO BASE64 (FOR AI) ---
+    function previewImage(input) {
+        const preview = document.getElementById('imgPreview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                // Resize for Gemini (Biar gak berat)
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 800;
+                    const scale = maxW / img.width;
+                    canvas.width = maxW;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    globalBase64Img = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; // Ambil data raw base64
+                }
+            }
+            reader.readAsDataURL(input.files[0]);
         }
-
-        const fileInput = document.getElementById('file_gambar');
-        if (fileInput.files.length === 0) return alert("Pilih gambar!");
-        
-        const btn = document.getElementById('btnUpload');
-        btn.innerText = "⏳ Uploading..."; btn.disabled = true;
-
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
-        formData.append("upload_preset", cPreset);
-
-        try {
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${cName}/image/upload`, { method: "POST", body: formData });
-            const data = await res.json();
-            if (data.secure_url) {
-                document.getElementById('final_img_url').value = data.secure_url;
-                document.getElementById('url_display').innerHTML = "Link OK: " + data.secure_url;
-                document.getElementById('imgPreview').src = data.secure_url;
-                document.getElementById('imgPreview').style.display = 'block';
-                btn.innerText = "✅ Sukses";
-            } else { alert("Gagal: " + data.error.message); btn.innerText = "Upload Ulang"; }
-        } catch (e) { alert("Error Cloudinary"); btn.innerText = "Upload Ulang"; }
-        btn.disabled = false;
     }
 
     async function generateContent() {
@@ -155,42 +153,106 @@
         const desc = document.getElementById('desc_gambar').value;
         const apiKey = document.getElementById('api_key_input').value;
         const model = document.getElementById('model_select').value;
-        const imgUrl = document.getElementById('final_img_url').value;
         const btn = document.getElementById('btnGen');
 
-        if(!apiKey || !model || !judul) return alert("Lengkapi data!");
+        if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
         btn.innerText = "⏳ Meracik..."; btn.disabled = true;
 
         const prompt = `Buat artikel blog sekolah HTML (tanpa markdown). Judul: ${judul}. Deskripsi: ${desc}. Gaya: Formal Ramah. Gunakan <h3>, <p>.`;
+        
+        // Payload untuk Gemini (Text + Image jika ada)
+        let parts = [{ text: prompt }];
+        if (globalBase64Img) {
+            parts.push({
+                inline_data: { mime_type: "image/jpeg", data: globalBase64Img }
+            });
+        }
 
         try {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                body: JSON.stringify({ contents: [{ parts: parts }] })
             });
             const data = await res.json();
             if(data.candidates) {
                 let aiText = data.candidates[0].content.parts[0].text.replace(/```html/g,'').replace(/```/g,'');
+                tinymce.get('kontenEditor').setContent(aiText);
                 
-                // --- TRIK HTML THUMBNAIL (RAW HTML) ---
-                // Kita taruh gambar 'telanjang' tanpa div di paling atas
-                // Plus tambahkan tag noscript
-                let finalContent = "";
-                if(imgUrl) {
-                    finalContent = `
-<img border="0" src="${imgUrl}" alt="${judul}" style="display:block; width:100%; max-width:100%; height:auto; margin-bottom:10px;" />
-<noscript><img src="${imgUrl}" /></noscript>
-<br>
-<div style="text-align:center; font-size:small; font-style:italic;">${desc}</div>
-<hr>
-` + aiText;
-                } else { finalContent = aiText; }
-
-                tinymce.get('kontenEditor').setContent(finalContent);
+                // Scroll ke editor
+                document.getElementById('kontenEditor').scrollIntoView({behavior: "smooth"});
             }
         } catch(e) { alert("Error AI"); }
-        btn.innerText = "✨ Generate"; btn.disabled = false;
+        btn.innerText = "✨ Generate Artikel"; btn.disabled = false;
+    }
+
+    async function postToBlogger(isDraft) {
+        const blogId = document.getElementById('blog_select').value;
+        const judul = document.getElementById('judul').value;
+        const konten = tinymce.get('kontenEditor').getContent();
+        const catS = document.getElementById('cat_select').value;
+        const catM = document.getElementById('cat_manual').value;
+        let labels = (catS === 'NEW' && catM) ? catM.split(',') : (catS ? [catS] : []);
+
+        if(!accessToken || !blogId) return alert("Login ulang!");
+        
+        const btn = document.querySelector('.btn-yellow');
+        btn.innerText = "⏳ Mengirim..."; btn.disabled = true;
+
+        try {
+            const res = await fetch(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    kind: 'blogger#post', 
+                    title: judul, 
+                    content: konten, 
+                    labels: labels,
+                    status: isDraft ? 'DRAFT' : 'LIVE' // Setting Status DRAFT
+                })
+            });
+            const d = await res.json();
+            
+            if(res.ok) {
+                // Simpan ke History
+                addToHistory(judul, d.url, isDraft);
+                
+                alert("✅ Sukses! Artikel masuk DRAFT Blogger.");
+                
+                // Auto Reload halaman (bersihkan form)
+                location.reload(); 
+            } else {
+                alert("Gagal: " + d.error.message);
+            }
+        } catch(e) { alert("Error Koneksi"); }
+        btn.innerText = "📂 Simpan ke DRAFT Blogger"; btn.disabled = false;
+    }
+
+    // --- HISTORY SYSTEM (LocalStorage) ---
+    function addToHistory(judul, url, isDraft) {
+        let history = JSON.parse(localStorage.getItem('post_history') || "[]");
+        let now = new Date().toLocaleTimeString();
+        history.unshift({ time: now, title: judul, url: url, status: isDraft ? 'Draft' : 'Live' });
+        if(history.length > 5) history.pop(); // Simpan 5 terakhir aja
+        localStorage.setItem('post_history', JSON.stringify(history));
+    }
+
+    function loadHistory() {
+        let history = JSON.parse(localStorage.getItem('post_history') || "[]");
+        const tbody = document.querySelector('#historyTable tbody');
+        tbody.innerHTML = "";
+        
+        if(history.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>Belum ada riwayat.</td></tr>";
+            return;
+        }
+
+        history.forEach(item => {
+            let badge = item.status === 'Draft' ? '<span class="badge-draft">DRAFT</span>' : '<span class="badge-success">LIVE</span>';
+            let link = item.url ? `<a href="${item.url}" target="_blank">Lihat</a>` : '-';
+            let row = `<tr><td>${item.time}</td><td>${item.title}</td><td>${badge}</td><td>${link}</td></tr>`;
+            tbody.innerHTML += row;
+        });
     }
 
     async function fetchUserBlogs() {
@@ -223,30 +285,6 @@
             }
         } catch(e) { alert("Error"); }
         btn.innerText = "Cek AI";
-    }
-
-    async function postToBlogger() {
-        const blogId = document.getElementById('blog_select').value;
-        const judul = document.getElementById('judul').value;
-        const konten = tinymce.get('kontenEditor').getContent();
-        const catS = document.getElementById('cat_select').value;
-        const catM = document.getElementById('cat_manual').value;
-        let labels = (catS === 'NEW' && catM) ? catM.split(',') : (catS ? [catS] : []);
-
-        if(!accessToken) return alert("Login ulang!");
-        localStorage.setItem('blogger_blog_id', blogId);
-        
-        document.getElementById('status_msg').innerHTML = "⏳ Sending...";
-        try {
-            const res = await fetch(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ kind: 'blogger#post', title: judul, content: konten, labels: labels })
-            });
-            const d = await res.json();
-            if(res.ok) document.getElementById('status_msg').innerHTML = `<div class='alert alert-success'>✅ Sukses! <a href="${d.url}" target="_blank">Lihat</a></div>`;
-            else alert(d.error.message);
-        } catch(e) { alert("Error"); }
     }
 
     function toggleManualCat() { document.getElementById('cat_manual').classList.toggle('hidden', document.getElementById('cat_select').value !== 'NEW'); }
