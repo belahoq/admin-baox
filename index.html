@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Builder (Draft Mode)</title>
+    <title>AI Blog Builder (Dual Engine)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -18,9 +18,15 @@
         .btn-green { background: #27ae60; } 
         .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; }
         .btn-yellow { background: #f1c40f; color: #333; }
+        .btn-dark { background: #34495e; }
 
         .hidden { display: none; }
         .box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e1e4e8; }
+        
+        /* Provider Toggle */
+        .provider-switch { display: flex; gap: 10px; margin-bottom: 10px; }
+        .provider-btn { flex: 1; padding: 10px; text-align: center; cursor: pointer; border: 2px solid #ddd; border-radius: 5px; font-weight: bold; opacity: 0.6; }
+        .provider-btn.active { border-color: #2ecc71; background: #eafaf1; color: #27ae60; opacity: 1; }
         
         /* History Table */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
@@ -35,7 +41,7 @@
 <body>
 
 <div class="container">
-    <h2>🚀 Admin Sekolah (Draft Mode)</h2>
+    <h2>🚀 Admin Sekolah (Dual Engine)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" style="text-align: center; padding: 40px;">
@@ -45,12 +51,19 @@
     <div id="app-section" class="hidden">
         
         <div class="box">
+            <label style="font-size:12px; font-weight:bold;">Pilih Mesin AI:</label>
+            <div class="provider-switch">
+                <div id="prov_gemini" class="provider-btn active" onclick="switchProvider('GEMINI')">Google Gemini<br><small>(Bisa Baca Gambar)</small></div>
+                <div id="prov_groq" class="provider-btn" onclick="switchProvider('GROQ')">Groq Cloud<br><small>(Super Cepat - Teks)</small></div>
+            </div>
+
             <div style="display:flex; gap:5px; margin-bottom:5px;">
-                <input type="password" id="api_key_input" placeholder="Gemini API Key..." style="flex:1;">
+                <input type="password" id="api_key_input" placeholder="Tempel Gemini API Key..." style="flex:1;">
                 <button onclick="fetchModels()" id="btn_cek" class="btn btn-orange" style="margin:0;">Cek AI</button>
             </div>
+            
             <div style="display:flex; gap:5px;">
-                <select id="model_select" style="margin:0;"><option disabled selected>-- Pilih AI --</option></select>
+                <select id="model_select" style="margin:0;"><option disabled selected>-- Pilih Model --</option></select>
                 <select id="blog_select" style="margin:0;"><option disabled selected>Loading Blog...</option></select>
             </div>
         </div>
@@ -58,9 +71,14 @@
         <div class="box">
             <input type="text" id="judul" placeholder="Judul Artikel">
             
-            <label style="font-size:12px; color:#666;">Gambar Referensi (Hanya untuk AI, tidak diupload):</label>
-            <input type="file" id="file_gambar" accept="image/*" onchange="previewImage(this)">
-            <img id="imgPreview" class="preview-img">
+            <div id="image_input_container">
+                <label style="font-size:12px; color:#666;">Gambar Referensi (Untuk Gemini membaca konteks):</label>
+                <input type="file" id="file_gambar" accept="image/*" onchange="previewImage(this)">
+                <img id="imgPreview" class="preview-img">
+            </div>
+            <div id="groq_warning" class="hidden" style="color: #e67e22; font-size: 12px; margin-bottom: 10px;">
+                ⚠️ Groq Mode: Gambar diabaikan, AI hanya membaca Judul & Deskripsi.
+            </div>
 
             <select id="cat_select" onchange="toggleManualCat()" style="margin-top:10px;">
                 <option value="" disabled selected>-- Kategori --</option>
@@ -71,7 +89,7 @@
             </select>
             <input type="text" id="cat_manual" class="hidden" placeholder="Nama Kategori...">
             
-            <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi tambahan..."></textarea>
+            <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi tambahan / Poin-poin tutorial..."></textarea>
             <select id="mode_penulisan"><option value="DEFAULT">Berita</option><option value="TUTORIAL">Tutorial</option><option value="PROFIL">Profil</option></select>
             
             <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel</button>
@@ -79,14 +97,12 @@
 
         <div class="box">
             <textarea id="kontenEditor"></textarea>
-            
             <button onclick="postToBlogger(true)" class="btn btn-yellow" style="margin-top:15px;">📂 Simpan ke DRAFT Blogger</button>
-            
             <center style="margin-top:10px;"><a href="#" onclick="doLogout()" style="color:red; text-decoration:none;">Logout</a></center>
         </div>
 
         <div class="box" id="history-box">
-            <h4>📜 Riwayat Generate (Sesi Ini)</h4>
+            <h4>📜 Riwayat Draft (Sesi Ini)</h4>
             <table id="historyTable">
                 <thead><tr><th>Jam</th><th>Judul</th><th>Status</th><th>Link</th></tr></thead>
                 <tbody></tbody>
@@ -96,13 +112,16 @@
 </div>
 
 <script>
+    // CONFIG GOOGLE
     const CLIENT_ID = '763331219607-vv1dd6jksep9utgs337idu67i57j6baa.apps.googleusercontent.com';
     const SCOPES = 'https://www.googleapis.com/auth/blogger';
+    
     let tokenClient, accessToken = null;
-    let globalBase64Img = ""; // Hanya untuk dikirim ke Gemini
+    let globalBase64Img = ""; 
+    let currentProvider = "GEMINI"; // Default
 
     window.onload = function() {
-        if(localStorage.getItem('gemini_api_key')) document.getElementById('api_key_input').value = localStorage.getItem('gemini_api_key');
+        switchProvider('GEMINI'); // Init UI
         
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
@@ -122,7 +141,35 @@
     function handleAuthClick() { tokenClient.requestAccessToken(); }
     function doLogout() { google.accounts.oauth2.revoke(accessToken, ()=>{}); location.reload(); }
 
-    // --- PREVIEW & CONVERT IMAGE TO BASE64 (FOR AI) ---
+    // --- PROVIDER SWITCHER ---
+    function switchProvider(provider) {
+        currentProvider = provider;
+        const input = document.getElementById('api_key_input');
+        const imgContainer = document.getElementById('image_input_container');
+        const groqWarn = document.getElementById('groq_warning');
+
+        // UI Updates
+        document.querySelectorAll('.provider-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('prov_' + provider.toLowerCase()).classList.add('active');
+
+        // Logic Updates
+        if (provider === 'GEMINI') {
+            input.placeholder = "Tempel Google Gemini API Key...";
+            if(localStorage.getItem('gemini_api_key')) input.value = localStorage.getItem('gemini_api_key');
+            imgContainer.classList.remove('hidden');
+            groqWarn.classList.add('hidden');
+        } else {
+            input.placeholder = "Tempel Groq API Key (gsk_...)...";
+            if(localStorage.getItem('groq_api_key')) input.value = localStorage.getItem('groq_api_key');
+            imgContainer.classList.add('hidden');
+            groqWarn.classList.remove('hidden');
+        }
+        
+        // Reset Model Select
+        document.getElementById('model_select').innerHTML = "<option disabled selected>-- Klik Cek AI --</option>";
+    }
+
+    // --- PREVIEW IMAGE (GEMINI ONLY) ---
     function previewImage(input) {
         const preview = document.getElementById('imgPreview');
         if (input.files && input.files[0]) {
@@ -130,7 +177,6 @@
             reader.onload = (e) => {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
-                // Resize for Gemini (Biar gak berat)
                 const img = new Image();
                 img.src = e.target.result;
                 img.onload = () => {
@@ -141,13 +187,57 @@
                     canvas.width = maxW;
                     canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    globalBase64Img = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; // Ambil data raw base64
+                    globalBase64Img = canvas.toDataURL('image/jpeg', 0.7).split(',')[1]; 
                 }
             }
             reader.readAsDataURL(input.files[0]);
         }
     }
 
+    // --- FETCH MODELS (DUAL ENGINE) ---
+    async function fetchModels() {
+        const key = document.getElementById('api_key_input').value;
+        const sel = document.getElementById('model_select');
+        const btn = document.getElementById('btn_cek');
+        
+        if(!key) return alert("Isi API Key dulu!");
+        btn.innerText = "..."; btn.disabled = true;
+
+        try {
+            if (currentProvider === 'GEMINI') {
+                // FETCH GEMINI
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                const data = await res.json();
+                if(data.models) {
+                    sel.innerHTML = "";
+                    data.models.forEach(m => { if(m.supportedGenerationMethods.includes("generateContent")) { 
+                        let o=document.createElement('option'); o.value=m.name; o.text=m.displayName; sel.appendChild(o); 
+                    }});
+                    localStorage.setItem('gemini_api_key', key);
+                    alert("Gemini Connected!");
+                } else throw new Error("Invalid Key");
+            } else {
+                // FETCH GROQ
+                const res = await fetch('https://api.groq.com/openai/v1/models', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                const data = await res.json();
+                if(data.data) {
+                    sel.innerHTML = "";
+                    data.data.forEach(m => { 
+                        if(!m.id.includes('whisper')) { // Filter audio models
+                            let o=document.createElement('option'); o.value=m.id; o.text=m.id; sel.appendChild(o);
+                        }
+                    });
+                    localStorage.setItem('groq_api_key', key);
+                    alert("Groq Connected!");
+                } else throw new Error("Invalid Key");
+            }
+        } catch(e) { alert("Gagal koneksi API. Cek Key."); }
+        btn.innerText = "Cek AI"; btn.disabled = false;
+    }
+
+    // --- GENERATE (DUAL ENGINE) ---
     async function generateContent() {
         const judul = document.getElementById('judul').value;
         const desc = document.getElementById('desc_gambar').value;
@@ -156,36 +246,75 @@
         const btn = document.getElementById('btnGen');
 
         if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
-        btn.innerText = "⏳ Meracik..."; btn.disabled = true;
+        btn.innerText = `⏳ Meracik (${currentProvider})...`; btn.disabled = true;
 
-        const prompt = `Buat artikel blog sekolah HTML (tanpa markdown). Judul: ${judul}. Deskripsi: ${desc}. Gaya: Formal Ramah. Gunakan <h3>, <p>.`;
+        // PROMPT STRICT
+        const systemPrompt = `
+        BERTINDAKLAH SEBAGAI MESIN PEMBUAT KONTEN HTML (STRICT MODE).
+        1. OUTPUT HANYA KODE HTML (Raw HTML).
+        2. JANGAN ADA TEKS PEMBUKA (Tentu, Berikut, dll) atau PENUTUP.
+        3. JANGAN GUNAKAN MARKDOWN (\`\`\`).
+        4. JANGAN GUNAKAN BINTANG (**). PAKAI TAG <b>.
+        5. Mulai langsung dengan tag <h3> atau <p>.
+        6. Gunakan Bahasa Indonesia Formal & Ramah.
+        `;
         
-        // Payload untuk Gemini (Text + Image jika ada)
-        let parts = [{ text: prompt }];
-        if (globalBase64Img) {
-            parts.push({
-                inline_data: { mime_type: "image/jpeg", data: globalBase64Img }
-            });
-        }
+        const userPrompt = `TOPIK: "${judul}". \nKONTEKS: "${desc}".`;
+
+        let resultText = "";
 
         try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ contents: [{ parts: parts }] })
-            });
-            const data = await res.json();
-            if(data.candidates) {
-                let aiText = data.candidates[0].content.parts[0].text.replace(/```html/g,'').replace(/```/g,'');
-                tinymce.get('kontenEditor').setContent(aiText);
+            if (currentProvider === 'GEMINI') {
+                // --- LOGIC GEMINI ---
+                let parts = [{ text: systemPrompt + "\n" + userPrompt }];
+                if (globalBase64Img && document.getElementById('file_gambar').files.length > 0) {
+                    parts.push({ inline_data: { mime_type: "image/jpeg", data: globalBase64Img } });
+                }
                 
-                // Scroll ke editor
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: parts }] })
+                });
+                const data = await res.json();
+                if(data.candidates) resultText = data.candidates[0].content.parts[0].text;
+
+            } else {
+                // --- LOGIC GROQ ---
+                const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userPrompt }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+                const data = await res.json();
+                if(data.choices) resultText = data.choices[0].message.content;
+            }
+
+            // CLEANING RESULT
+            if(resultText) {
+                resultText = resultText.replace(/```html/gi, '').replace(/```/g, '');
+                resultText = resultText.replace(/^(Tentu|Baik|Berikut|Oke|Halo|Ini adalah).+?(\n|<)/si, '');
+                resultText = resultText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                
+                tinymce.get('kontenEditor').setContent(resultText);
                 document.getElementById('kontenEditor').scrollIntoView({behavior: "smooth"});
             }
-        } catch(e) { alert("Error AI"); }
+
+        } catch(e) { alert("Error Generate: " + e.message); }
         btn.innerText = "✨ Generate Artikel"; btn.disabled = false;
     }
 
+    // --- POST TO BLOGGER (DRAFT ONLY) ---
     async function postToBlogger(isDraft) {
         const blogId = document.getElementById('blog_select').value;
         const judul = document.getElementById('judul').value;
@@ -195,7 +324,6 @@
         let labels = (catS === 'NEW' && catM) ? catM.split(',') : (catS ? [catS] : []);
 
         if(!accessToken || !blogId) return alert("Login ulang!");
-        
         const btn = document.querySelector('.btn-yellow');
         btn.innerText = "⏳ Mengirim..."; btn.disabled = true;
 
@@ -204,36 +332,26 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    kind: 'blogger#post', 
-                    title: judul, 
-                    content: konten, 
-                    labels: labels,
-                    status: isDraft ? 'DRAFT' : 'LIVE' // Setting Status DRAFT
+                    kind: 'blogger#post', title: judul, content: konten, labels: labels,
+                    status: isDraft ? 'DRAFT' : 'LIVE' 
                 })
             });
             const d = await res.json();
-            
             if(res.ok) {
-                // Simpan ke History
                 addToHistory(judul, d.url, isDraft);
-                
-                alert("✅ Sukses! Artikel masuk DRAFT Blogger.");
-                
-                // Auto Reload halaman (bersihkan form)
+                alert("✅ Sukses! Masuk DRAFT Blogger.");
                 location.reload(); 
-            } else {
-                alert("Gagal: " + d.error.message);
-            }
+            } else { alert("Gagal: " + d.error.message); }
         } catch(e) { alert("Error Koneksi"); }
         btn.innerText = "📂 Simpan ke DRAFT Blogger"; btn.disabled = false;
     }
 
-    // --- HISTORY SYSTEM (LocalStorage) ---
+    // --- UTILS ---
     function addToHistory(judul, url, isDraft) {
         let history = JSON.parse(localStorage.getItem('post_history') || "[]");
-        let now = new Date().toLocaleTimeString();
-        history.unshift({ time: now, title: judul, url: url, status: isDraft ? 'Draft' : 'Live' });
-        if(history.length > 5) history.pop(); // Simpan 5 terakhir aja
+        let link = url ? url : "https://draft.blogger.com"; 
+        history.unshift({ time: new Date().toLocaleTimeString(), title: judul, url: link, status: 'Draft' });
+        if(history.length > 5) history.pop(); 
         localStorage.setItem('post_history', JSON.stringify(history));
     }
 
@@ -241,17 +359,11 @@
         let history = JSON.parse(localStorage.getItem('post_history') || "[]");
         const tbody = document.querySelector('#historyTable tbody');
         tbody.innerHTML = "";
-        
-        if(history.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>Belum ada riwayat.</td></tr>";
-            return;
-        }
-
+        if(history.length === 0) { tbody.innerHTML = "<tr><td colspan='4' style='text-align:center;'>Belum ada riwayat.</td></tr>"; return; }
         history.forEach(item => {
-            let badge = item.status === 'Draft' ? '<span class="badge-draft">DRAFT</span>' : '<span class="badge-success">LIVE</span>';
-            let link = item.url ? `<a href="${item.url}" target="_blank">Lihat</a>` : '-';
-            let row = `<tr><td>${item.time}</td><td>${item.title}</td><td>${badge}</td><td>${link}</td></tr>`;
-            tbody.innerHTML += row;
+            let badge = `<span class="badge-draft">DRAFT</span>`;
+            let link = `<a href="${item.url}" target="_blank">Cek</a>`;
+            tbody.innerHTML += `<tr><td>${item.time}</td><td>${item.title}</td><td>${badge}</td><td>${link}</td></tr>`;
         });
     }
 
@@ -266,25 +378,6 @@
                 if(localStorage.getItem('blogger_blog_id')) sel.value = localStorage.getItem('blogger_blog_id');
             }
         } catch(e) {}
-    }
-
-    async function fetchModels() {
-        const key = document.getElementById('api_key_input').value;
-        const sel = document.getElementById('model_select');
-        const btn = document.getElementById('btn_cek');
-        if(!key) return alert("Isi Key!");
-        btn.innerText = "...";
-        try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-            const data = await res.json();
-            if(data.models) {
-                sel.innerHTML = "";
-                data.models.forEach(m => { if(m.supportedGenerationMethods.includes("generateContent")) { let o=document.createElement('option'); o.value=m.name; o.text=m.displayName; sel.appendChild(o); }});
-                localStorage.setItem('gemini_api_key', key);
-                alert("OK");
-            }
-        } catch(e) { alert("Error"); }
-        btn.innerText = "Cek AI";
     }
 
     function toggleManualCat() { document.getElementById('cat_manual').classList.toggle('hidden', document.getElementById('cat_select').value !== 'NEW'); }
