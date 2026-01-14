@@ -236,15 +236,17 @@
                 aiText = aiText.replace(/```html/g, '').replace(/```/g, '').replace(/\*\*/g, '');
                 
                 let finalContent = "";
-                // Embed Gambar
-                if(imgUrl) {
-                    finalContent = `
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <img src="${imgUrl}" alt="${judul}" style="max-width:100%; height:auto; border-radius:8px;" />
-                        <br><small><i>${desc}</i></small>
-                    </div>
-                    ` + aiText;
-                } else { finalContent = aiText; }
+                // Embed Gambar (Versi Paksa Thumbnail)
+if(imgUrl) {
+    // Kita taruh tag IMG di paling depan, tanpa DIV pembungkus, 
+    // dan kita kasih tag 'noscript' biar robot template lebih gampang baca.
+    finalContent = `
+    <img border="0" src="${imgUrl}" alt="${judul}" style="display:block; max-width:100%; height:auto; margin:0 auto 20px auto;" />
+    <br/>
+    <p style="text-align:center; font-size:small; font-style:italic;">${desc}</p>
+    <hr/>
+    ` + aiText;
+} else { finalContent = aiText; }
 
                 tinymce.get('kontenEditor').setContent(finalContent);
             }
@@ -330,3 +332,4 @@
 
 </body>
 </html>
+
