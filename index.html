@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Builder (v21 - Stable)</title>
+    <title>AI Blog Builder (Bing Scraper)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -14,35 +14,32 @@
         
         .btn { width: 100%; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color:white; margin-top:5px; transition: 0.2s; }
         .btn:hover { filter: brightness(0.9); }
-        .btn-blue { background: #3498db; } 
-        .btn-green { background: #27ae60; } 
-        .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; }
-        .btn-yellow { background: #f1c40f; color: #333; }
+        .btn-blue { background: #3498db; } .btn-green { background: #27ae60; } 
+        .btn-orange { background: #e67e22; width: auto; padding: 8px 15px; } .btn-yellow { background: #f1c40f; color: #333; }
 
         .hidden { display: none; }
         .box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e1e4e8; }
         
-        /* Provider Toggle */
         .provider-switch { display: flex; gap: 10px; margin-bottom: 10px; }
         .provider-btn { flex: 1; padding: 10px; text-align: center; cursor: pointer; border: 2px solid #ddd; border-radius: 5px; font-weight: bold; opacity: 0.6; }
         .provider-btn.active { border-color: #2ecc71; background: #eafaf1; color: #27ae60; opacity: 1; }
         
-        /* History Table */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         .badge-draft { background: #f39c12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 
         .preview-img { max-height: 150px; display: none; margin: 10px auto; border-radius: 5px; border: 1px solid #ddd; }
+        .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; background: #fff; padding: 10px; border: 1px dashed #3498db; border-radius: 5px; }
         .alert { padding: 10px; border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-success { background: #d4edda; color: #155724; }
+        .alert-error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🚀 Admin Sekolah (Auto-Draft)</h2>
+    <h2>🚀 Admin Sekolah (Bing Scraper)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" style="text-align: center; padding: 40px;">
@@ -63,22 +60,32 @@
                 <button onclick="fetchModels()" id="btn_cek" class="btn btn-orange" style="margin:0;">Cek AI</button>
             </div>
             
-            <div style="display:flex; gap:5px;">
+            <input type="password" id="bing_script_url" placeholder="Tempel URL Script Google Apps Script (Bing Scraper) di sini...">
+            
+            <div style="display:flex; gap:5px; margin-top:5px;">
                 <select id="model_select" style="margin:0;"><option disabled selected>-- Pilih Model --</option></select>
                 <select id="blog_select" style="margin:0;"><option disabled selected>Loading Blog...</option></select>
             </div>
         </div>
 
         <div class="box">
-            <input type="text" id="judul" placeholder="Judul Artikel (Contoh: Prestasi Lomba Puisi)">
+            <input type="text" id="judul" placeholder="Judul Artikel (Contoh: Upacara Bendera Senin)">
             
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="auto_bing_image" checked>
+                <div>
+                    <b>🔍 Cari Gambar Otomatis (Bing Images)?</b><br>
+                    <small style="color:#666;">Script akan mencarikan gambar relevan tanpa watermark.</small>
+                </div>
+            </div>
+
             <div id="image_input_container">
-                <label style="font-size:12px; color:#666;">Gambar Referensi (Hanya untuk dibaca AI):</label>
+                <label style="font-size:12px; color:#666;">Atau Upload Manual (Untuk referensi Gemini):</label>
                 <input type="file" id="file_gambar" accept="image/*" onchange="previewImage(this)">
                 <img id="imgPreview" class="preview-img">
             </div>
             <div id="groq_warning" class="hidden" style="color: #e67e22; font-size: 12px; margin-bottom: 10px;">
-                ⚠️ Groq Mode: Hanya membaca teks judul & deskripsi (Tidak baca gambar).
+                ⚠️ Groq Mode: Hanya membaca teks (Gambar upload diabaikan).
             </div>
 
             <select id="cat_select" onchange="toggleManualCat()" style="margin-top:10px;">
@@ -93,7 +100,7 @@
             <textarea id="desc_gambar" style="height:60px;" placeholder="Deskripsi/Poin penting artikel..."></textarea>
             <select id="mode_penulisan"><option value="DEFAULT">Berita</option><option value="TUTORIAL">Tutorial</option><option value="PROFIL">Profil</option></select>
             
-            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel (Lengkap)</button>
+            <button onclick="generateContent()" id="btnGen" class="btn btn-green">✨ Generate Artikel & Cari Gambar</button>
         </div>
 
         <div class="box">
@@ -103,7 +110,7 @@
         </div>
 
         <div class="box" id="history-box">
-            <h4>📜 Riwayat Draft (Sesi Ini)</h4>
+            <h4>📜 Riwayat Draft</h4>
             <table id="historyTable">
                 <thead><tr><th>Jam</th><th>Judul</th><th>Status</th><th>Link</th></tr></thead>
                 <tbody></tbody>
@@ -122,7 +129,8 @@
 
     window.onload = function() {
         switchProvider('GEMINI'); 
-        
+        if(localStorage.getItem('bing_script_url')) document.getElementById('bing_script_url').value = localStorage.getItem('bing_script_url');
+
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: (resp) => {
@@ -137,12 +145,8 @@
         });
         
         tinymce.init({ 
-            selector: '#kontenEditor', 
-            height: 500, 
-            plugins: 'lists code wordcount', 
-            toolbar: 'undo redo | bold italic | bullist numlist | code | wordcount', 
-            branding: false,
-            statusbar: true
+            selector: '#kontenEditor', height: 500, plugins: 'lists code wordcount', 
+            toolbar: 'undo redo | bold italic | bullist numlist | code | wordcount', branding: false, statusbar: true
         });
     };
 
@@ -200,7 +204,6 @@
         const key = document.getElementById('api_key_input').value;
         const sel = document.getElementById('model_select');
         const btn = document.getElementById('btn_cek');
-        
         if(!key) return alert("Isi API Key dulu!");
         btn.innerText = "..."; btn.disabled = true;
 
@@ -221,11 +224,9 @@
                 const data = await res.json();
                 if(data.data) {
                     sel.innerHTML = "";
-                    data.data.forEach(m => { 
-                        if(!m.id.includes('whisper')) { 
-                            let o=document.createElement('option'); o.value=m.id; o.text=m.id; sel.appendChild(o);
-                        }
-                    });
+                    data.data.forEach(m => { if(!m.id.includes('whisper')) { 
+                        let o=document.createElement('option'); o.value=m.id; o.text=m.id; sel.appendChild(o);
+                    }});
                     localStorage.setItem('groq_api_key', key);
                     alert("Groq Connected!");
                 } else throw new Error("Invalid Key");
@@ -234,39 +235,58 @@
         btn.innerText = "Cek AI"; btn.disabled = false;
     }
 
+    // --- LOGIC COMBO: SCRAPE IMAGE + GENERATE TEXT ---
     async function generateContent() {
         const judul = document.getElementById('judul').value;
         const desc = document.getElementById('desc_gambar').value;
         const apiKey = document.getElementById('api_key_input').value;
         const model = document.getElementById('model_select').value;
+        const bingScriptUrl = document.getElementById('bing_script_url').value;
+        const autoBing = document.getElementById('auto_bing_image').checked;
         const btn = document.getElementById('btnGen');
 
         if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
-        btn.innerText = `⏳ Meracik... (${currentProvider})`; btn.disabled = true;
+        
+        // Simpan URL Bing biar gak ilang
+        if(bingScriptUrl) localStorage.setItem('bing_script_url', bingScriptUrl);
 
-        // PROMPT SANGAT DETIL AGAR ARTIKEL PANJANG & LENGKAP
+        btn.innerText = `⏳ Meracik (${currentProvider})...`; btn.disabled = true;
+
+        // 1. CARI GAMBAR DULU (JIKA DICENTANG)
+        let bingImageUrl = "";
+        if (autoBing && bingScriptUrl) {
+            btn.innerText = "🔍 Mencari Gambar di Bing...";
+            try {
+                const imgRes = await fetch(bingScriptUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: JSON.stringify({ query: judul })
+                });
+                const imgData = await imgRes.json();
+                if(imgData.status === "success" && imgData.url) {
+                    bingImageUrl = imgData.url;
+                    console.log("Gambar ditemukan:", bingImageUrl);
+                }
+            } catch(e) { console.error("Gagal Scrape Bing:", e); }
+        }
+
+        // 2. GENERATE TEKS
+        btn.innerText = "✍️ Menulis Artikel...";
         const systemPrompt = `
-        BERTINDAKLAH SEBAGAI PENULIS BLOG PROFESIONAL & AHLI SEO.
+        BERTINDAKLAH SEBAGAI PENULIS BLOG SEKOLAH PROFESIONAL (SEO EXPERT).
         
         INSTRUKSI UTAMA:
-        1. Tulis artikel LENGKAP minimal 500-800 kata. Jangan terputus.
-        2. Gunakan format HTML murni (tanpa markdown).
-        3. Struktur Wajib:
-           - <h3>Pendahuluan</h3> (Paragraf pembuka yang menarik)
-           - <h3>[Sub Judul Relevan 1]</h3> (Penjelasan detail)
-           - <h3>[Sub Judul Relevan 2]</h3> (Analisis atau poin penting)
-           - <h3>[Sub Judul Relevan 3]</h3> (Dampak atau manfaat)
-           - <h3>Kesimpulan</h3> (Penutup yang kuat)
-        4. Gaya bahasa: Formal, edukatif, ramah, dan memotivasi.
-        5. Gunakan tag <p> untuk paragraf, <ul>/<ol> untuk list, dan <b> untuk bold.
-        6. JANGAN ADA TEKS PEMBUKA (Seperti "Tentu", "Berikut ini"). Langsung ke artikel.
+        1. Tulis artikel LENGKAP minimal 500-700 kata.
+        2. Format: HTML murni (tanpa markdown).
+        3. Struktur: <h3>Pendahuluan</h3>, <h3>[Sub Judul]</h3>, <h3>Kesimpulan</h3>.
+        4. Gaya: Formal, edukatif, ramah.
+        5. LANGSUNG KE ISI ARTIKEL (Jangan ada basa-basi).
         
         TOPIK: "${judul}"
         KONTEKS: "${desc}"
         `;
 
         let resultText = "";
-
         try {
             if (currentProvider === 'GEMINI') {
                 let parts = [{ text: systemPrompt }];
@@ -276,11 +296,7 @@
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    // Setting maxOutputTokens tinggi agar artikel tidak terpotong
-                    body: JSON.stringify({ 
-                        contents: [{ parts: parts }],
-                        generationConfig: { maxOutputTokens: 8192 } 
-                    })
+                    body: JSON.stringify({ contents: [{ parts: parts }], generationConfig: { maxOutputTokens: 8192 } })
                 });
                 const data = await res.json();
                 if(data.candidates) resultText = data.candidates[0].content.parts[0].text;
@@ -293,7 +309,7 @@
                         model: model,
                         messages: [{ role: "system", content: systemPrompt }],
                         temperature: 0.7,
-                        max_tokens: 4096 // Maksimalkan token Groq
+                        max_tokens: 4096
                     })
                 });
                 const data = await res.json();
@@ -301,17 +317,26 @@
             }
 
             if(resultText) {
-                // Pembersihan
-                resultText = resultText.replace(/```html/gi, '').replace(/```/g, '');
-                resultText = resultText.replace(/^(Tentu|Baik|Berikut|Oke|Halo).+?(\n|<)/si, '');
-                resultText = resultText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                resultText = resultText.replace(/```html/gi, '').replace(/```/g, '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                 
+                // GABUNGKAN GAMBAR BING
+                if(bingImageUrl) {
+                    const imgTag = `
+                    <div style="text-align:center; margin-bottom:20px;">
+                        <img src="${bingImageUrl}" alt="${judul}" style="max-width:100%; height:auto; border-radius:8px;" />
+                        <br><small><i>Sumber: Bing Images</i></small>
+                    </div>
+                    <hr/>
+                    `;
+                    resultText = imgTag + resultText;
+                }
+
                 tinymce.get('kontenEditor').setContent(resultText);
                 document.getElementById('kontenEditor').scrollIntoView({behavior: "smooth"});
             }
 
         } catch(e) { alert("Error Generate: " + e.message); }
-        btn.innerText = "✨ Generate Artikel (Lengkap)"; btn.disabled = false;
+        btn.innerText = "✨ Generate Artikel & Cari Gambar"; btn.disabled = false;
     }
 
     async function postToBlogger(isDraft) {
@@ -323,7 +348,6 @@
         let labels = (catS === 'NEW' && catM) ? catM.split(',') : (catS ? [catS] : []);
 
         if(!accessToken || !blogId) return alert("Login ulang!");
-        
         const btn = document.querySelector('.btn-yellow');
         btn.innerText = "⏳ Mengirim..."; btn.disabled = true;
 
@@ -331,35 +355,19 @@
             const res = await fetch(`https://www.googleapis.com/blogger/v3/blogs/${blogId}/posts/`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    kind: 'blogger#post', title: judul, content: konten, labels: labels,
-                    status: isDraft ? 'DRAFT' : 'LIVE' 
-                })
+                body: JSON.stringify({ kind: 'blogger#post', title: judul, content: konten, labels: labels, status: isDraft ? 'DRAFT' : 'LIVE' })
             });
             const d = await res.json();
-            
             if(res.ok) {
                 addToHistory(judul, d.url, isDraft);
-                // UPDATE PENTING: TIDAK ADA RELOAD HALAMAN
-                // Cuma reset form saja biar token tidak hilang
                 resetForm();
-                
-                // Tampilkan pesan sukses
-                document.getElementById('status_msg').innerHTML = `
-                    <div class='alert alert-success'>
-                        ✅ <b>Berhasil!</b> Artikel masuk DRAFT Blogger.<br>
-                        Silakan buka <a href='https://draft.blogger.com' target='_blank'>Blogger</a> untuk upload foto & publish.
-                    </div>`;
-                
-                // Scroll ke atas
+                document.getElementById('status_msg').innerHTML = `<div class='alert alert-success'>✅ <b>Berhasil!</b> Masuk DRAFT Blogger.</div>`;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-
             } else { alert("Gagal: " + d.error.message); }
         } catch(e) { alert("Error Koneksi"); }
         btn.innerText = "📂 Simpan ke DRAFT Blogger"; btn.disabled = false;
     }
 
-    // --- FUNGSI RESET FORM (GANTI RELOAD) ---
     function resetForm() {
         document.getElementById('judul').value = "";
         document.getElementById('desc_gambar').value = "";
@@ -375,7 +383,7 @@
         history.unshift({ time: new Date().toLocaleTimeString(), title: judul, url: link, status: 'Draft' });
         if(history.length > 5) history.pop(); 
         localStorage.setItem('post_history', JSON.stringify(history));
-        loadHistory(); // Refresh tabel langsung
+        loadHistory();
     }
 
     function loadHistory() {
