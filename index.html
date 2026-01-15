@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog Monster (Clickbait SEO)</title>
+    <title>AI Blog Monster (Smart Modes)</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
     <style>
@@ -22,12 +22,12 @@
         .btn-green { background: #27ae60; } 
         .btn-orange { background: #d35400; width: auto; padding: 8px 15px; font-size: 13px; } 
         .btn-purple { background: #8e44ad; }
+        .btn-yellow { background: #f1c40f; color: #333; }
         .btn-red { background: #c0392b; }
 
         .hidden { display: none; }
         .box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e1e4e8; }
         
-        /* Toggle Switch */
         .provider-switch { display: flex; gap: 10px; margin-bottom: 15px; }
         .provider-btn { flex: 1; padding: 12px; text-align: center; cursor: pointer; border: 2px solid #ddd; border-radius: 6px; font-weight: bold; opacity: 0.6; transition: 0.2s; }
         .provider-btn.active { border-color: #27ae60; background: #eafaf1; color: #27ae60; opacity: 1; }
@@ -35,7 +35,6 @@
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #fff; padding: 12px; border: 1px dashed #3498db; border-radius: 6px; }
         .checkbox-wrapper input { width: 18px; height: 18px; margin: 0; cursor: pointer; }
         
-        /* History & Status */
         #status_msg { margin-bottom: 20px; }
         .alert { padding: 15px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -53,7 +52,7 @@
 <body>
 
 <div class="container">
-    <h2>🚀 AI Blog Monster (SEO Clickbait)</h2>
+    <h2>🚀 AI Blog Monster (Smart Modes)</h2>
     <div id="status_msg"></div>
 
     <div id="login-section" style="text-align: center; padding: 60px;">
@@ -88,7 +87,7 @@
         </div>
 
         <div class="box">
-            <input type="text" id="judul" placeholder="Topik Utama / Kata Kunci (Misal: Lomba Kebersihan Kelas)">
+            <input type="text" id="judul" placeholder="Topik Utama / Kata Kunci (Misal: Upacara Bendera)">
             
             <div class="checkbox-wrapper">
                 <input type="checkbox" id="auto_bing_image" checked>
@@ -119,17 +118,17 @@
             
             <textarea id="desc_gambar" style="height:80px;" placeholder="Instruksi tambahan / Poin-poin pembahasan..."></textarea>
             
-            <select id="mode_penulisan">
-                <option value="CLICKBAIT">🔥 Mode SEO Clickbait (Sesuai Request)</option>
+            <select id="mode_penulisan" style="border: 2px solid #3498db; background: #f0faff;">
                 <option value="DEFAULT">📰 Berita Sekolah (Formal)</option>
-                <option value="TUTORIAL">🛠️ Tutorial Lengkap</option>
+                <option value="CLICKBAIT">🔥 Mode SEO Clickbait (Viral)</option>
+                <option value="TUTORIAL">🛠️ Tutorial / Panduan</option>
             </select>
+            <small style="display:block; color:#666; margin-bottom:10px;">*Pilih mode dengan bijak. Prompt AI akan menyesuaikan pilihan ini.</small>
             
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <button onclick="generateContent(false)" id="btnPreview" class="btn btn-green" style="flex:1;">✨ Preview di Editor</button>
                 <button onclick="generateContent(true)" id="btnDirect" class="btn btn-purple" style="flex:1;">🚀 Generate & Langsung Draft</button>
             </div>
-            <small style="display:block; margin-top:5px; color:#666; text-align:center;">*Tombol Ungu bypass editor (langsung masuk Blogger)</small>
         </div>
 
         <div class="box">
@@ -187,26 +186,26 @@
     function handleAuthClick() { tokenClient.requestAccessToken(); }
     function doLogout() { google.accounts.oauth2.revoke(accessToken, ()=>{}); location.reload(); }
 
-    // --- FITUR UTAMA: GENERATE CONTENT ---
+    // --- LOGIC UTAMA: PROMPT DYNAMIC ---
     async function generateContent(directToBlogger = false) {
         const judul = document.getElementById('judul').value;
         const desc = document.getElementById('desc_gambar').value;
         const apiKey = document.getElementById('api_key_input').value;
         const model = document.getElementById('model_select').value;
-        const mode = document.getElementById('mode_penulisan').value;
+        const mode = document.getElementById('mode_penulisan').value; // Ambil Mode
         const bingScriptUrl = document.getElementById('bing_script_url').value;
         const autoBing = document.getElementById('auto_bing_image').checked;
         
         const btnMain = directToBlogger ? document.getElementById('btnDirect') : document.getElementById('btnPreview');
         
-        if(!apiKey || !model || !judul) return alert("Data belum lengkap (API Key, Model, Judul)!");
+        if(!apiKey || !model || !judul) return alert("Data belum lengkap!");
         if(bingScriptUrl) localStorage.setItem('bing_script_url', bingScriptUrl);
 
         btnMain.innerText = `⏳ Sedang Berpikir (${currentProvider})...`; 
         btnMain.disabled = true;
         if(directToBlogger) document.getElementById('btnPreview').disabled = true;
 
-        // 1. CARI GAMBAR (Paralel kalau bisa, tapi kita urutkan biar aman)
+        // 1. CARI GAMBAR BING
         let bingImageUrl = "";
         if (autoBing && bingScriptUrl) {
             btnMain.innerText = "🔍 Mencari Gambar...";
@@ -219,31 +218,69 @@
             } catch(e) { console.error("Bing Error:", e); }
         }
 
-        // 2. SIAPKAN PROMPT (DARI KODE PHP SAMTIGIS YANG DI-CONVERT)
+        // 2. RANCANG PROMPT BERDASARKAN MODE
         btnMain.innerText = "✍️ Menulis Artikel...";
         
-        // Base Instruction
+        let customPrompt = "";
+
+        // --- PILIHAN KEPRIBADIAN AI ---
+        if (mode === 'CLICKBAIT') {
+            // MODE VIRAL / SEO KERAS
+            customPrompt = `
+            STYLE: Santai, Viral, Mengundang Klik (Clickbait Sopan).
+            JUDUL OUTPUT [TITLE]: Harus sangat menarik, mengandung rasa penasaran, tapi tidak bohong.
+            STRUKTUR:
+            - Paragraf pembuka yang panjang dan emosional (hook).
+            - JANGAN pakai heading (H2) di awal artikel.
+            - Gunakan kalimat pendek-pendek yang enak dibaca di HP.
+            `;
+        } else if (mode === 'DEFAULT') {
+            // MODE FORMAL / BERITA SEKOLAH
+            customPrompt = `
+            STYLE: Formal, Jurnalistik, Objektif, Edukatif, Baku (EYD).
+            JUDUL OUTPUT [TITLE]: Formal, Padat, Jelas (Seperti judul koran/berita resmi). Jangan pakai bahasa gaul.
+            STRUKTUR:
+            - Gunakan prinsip 5W+1H (Apa, Siapa, Kapan, Dimana, Mengapa, Bagaimana) di paragraf awal.
+            - Gunakan heading (H2) yang deskriptif formal (Contoh: "Latar Belakang Kegiatan", "Pelaksanaan Acara").
+            - Hindari opini pribadi yang berlebihan. Gunakan sudut pandang orang ketiga ("Pihak sekolah", "Para siswa").
+            `;
+        } else if (mode === 'TUTORIAL') {
+            // MODE PANDUAN
+            customPrompt = `
+            STYLE: Edukatif, Instruksional, Langkah-demi-Langkah.
+            JUDUL OUTPUT [TITLE]: Menggunakan format "Cara...", "Panduan...", atau "Tips...".
+            STRUKTUR:
+            - Pendahuluan singkat tentang tujuan tutorial.
+            - H2: Alat dan Bahan (Jika perlu) atau Persiapan.
+            - H2: Langkah-langkah (Gunakan Numbered List / <ol>).
+            - H2: Tips Tambahan / Kesimpulan.
+            `;
+        }
+
+        // BASE PROMPT (GABUNGAN)
         let prompt = `
-        BERTINDAKLAH SEBAGAI PENULIS BLOG PRO DENGAN GAYA BAHASA: ${mode === 'CLICKBAIT' ? 'Santai, Viral, Mengundang Klik (Clickbait Sopan)' : 'Formal, Edukatif'}.
+        BERTINDAKLAH SEBAGAI PENULIS BLOG PROFESIONAL.
+        MODE PENULISAN: ${mode}.
         
-        TUGAS: Tulis artikel lengkap minimal 800 kata tentang "${judul}".
-        FORMAT OUTPUT: HTML Murni (Tanpa Markdown \`\`\`).
+        ${customPrompt}
+
+        TUGAS UTAMA:
+        Buat artikel HTML Murni (Tanpa Markdown) minimal 600 kata tentang: "${judul}".
         
-        STRUKTUR ARTIKEL (WAJIB DIPATUHI):
-        1. [TITLE]: Judul yang sangat menarik/clickbait sopan.
-        2. [META_DESC]: Meta description (maks 150 karakter) di baris pertama.
-        3. [TAGS]: 5-10 tag relevan dipisahkan koma.
-        4. ISI ARTIKEL:
-           - JANGAN letakkan <h2> di paling atas. Mulai langsung dengan paragraf pendahuluan (2-3 paragraf).
-           - Masukkan kata kunci "${judul}" di awal paragraf pertama.
-           - Gunakan <h2> setelah pendahuluan.
-           - Gunakan <h3> untuk merinci poin-poin.
-           - Akhiri dengan kesimpulan natural (jangan pakai heading 'Kesimpulan').
-           - Hindari kalimat kaku/robotik.
+        FORMAT OUTPUT WAJIB (Jangan diubah):
+        1. [TITLE]: (Isi judul sesuai style di atas)
+        2. [META_DESC]: (Deskripsi singkat untuk SEO, maks 150 huruf)
+        3. [TAGS]: (5-10 tag relevan dipisah koma)
+        4. (Isi Artikel HTML mulai dari sini...)
+           - Gunakan <h2>, <h3>, <p>, <ul>/<ol>.
+           - JANGAN pakai bintang (**). Gunakan <b>.
+           - SISIPKAN 1-3 LINK INTERNAL SECARA NATURAL KE ARTIKEL BERIKUT (Gunakan anchor text yang sangat relevan dengan topik pembahasan di paragraf tersebut)
+           - Hindari pola kalimat yang kaku atau membosankan agar tidak terlihat saturated antar artikel.
+           - Akhiri artikel dengan kesimpulan yang natural TANPA menggunakan heading 'Kesimpulan' atau semacamnya. Buat penutup yang mengalir.
+           - Gunakan <h3> untuk merinci poin-poin seperti tips, ide, atau detail spesifik.
         
-        INSTRUKSI KHUSUS:
-        - Pastikan artikel mendalam dan informatif.
-        - ${desc}
+        KONTEKS TAMBAHAN DARI USER:
+        "${desc}"
         `;
 
         let resultText = "";
@@ -275,30 +312,27 @@
                 // Bersihkan Markdown
                 resultText = resultText.replace(/```html/gi, '').replace(/```/g, '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
-                // --- PARSING METADATA DARI OUTPUT AI (Title, Meta, Tags) ---
+                // --- PARSING METADATA ---
                 let finalTitle = judul;
                 let finalTags = [];
                 let finalContent = resultText;
 
-                // Coba ambil Title dari AI
                 const titleMatch = resultText.match(/\[TITLE\]:(.*?)(<br>|\n)/i);
                 if(titleMatch && titleMatch[1]) {
                     finalTitle = titleMatch[1].trim();
-                    finalContent = finalContent.replace(titleMatch[0], ''); // Hapus dari body
+                    finalContent = finalContent.replace(titleMatch[0], '');
                 }
 
-                // Coba ambil Meta Desc (Biarkan di body atau hapus, terserah. Kita hapus biar bersih)
                 const metaMatch = resultText.match(/\[META_DESC\]:(.*?)(<br>|\n)/i);
                 if(metaMatch) finalContent = finalContent.replace(metaMatch[0], '');
 
-                // Coba ambil Tags
                 const tagsMatch = resultText.match(/\[TAGS\]:(.*?)(<br>|\n|$)/i);
                 if(tagsMatch && tagsMatch[1]) {
                     finalTags = tagsMatch[1].split(',').map(t => t.trim());
                     finalContent = finalContent.replace(tagsMatch[0], '');
                 }
 
-                // Gabungkan Gambar Bing (Jika Ada)
+                // Tempel Gambar Bing
                 if(bingImageUrl) {
                     const imgTag = `
                     <div style="text-align:center; margin-bottom:20px;">
@@ -309,20 +343,14 @@
                     finalContent = imgTag + finalContent;
                 }
 
-                // --- BRANCHING: PREVIEW ATAU DIRECT ---
                 if (directToBlogger) {
-                    // Langsung Kirim ke Blogger
-                    await sendToBloggerAPI(finalTitle, finalContent, finalTags, true); // true = Draft
+                    await sendToBloggerAPI(finalTitle, finalContent, finalTags, true);
                 } else {
-                    // Tampilkan di Editor
-                    document.getElementById('judul').value = finalTitle; // Update judul dengan saran AI
+                    document.getElementById('judul').value = finalTitle;
                     tinymce.get('kontenEditor').setContent(finalContent);
                     document.getElementById('kontenEditor').scrollIntoView({behavior: "smooth"});
-                    
-                    // Masukkan tags ke input manual kategori (opsional)
                     if(finalTags.length > 0) {
-                        const catManual = document.getElementById('cat_manual');
-                        catManual.value = finalTags.join(', ');
+                        document.getElementById('cat_manual').value = finalTags.join(', ');
                         document.getElementById('cat_select').value = "NEW";
                         toggleManualCat();
                     }
@@ -332,14 +360,13 @@
         } catch(e) { alert("Error: " + e.message); }
         
         btnMain.disabled = false;
-        document.getElementById('btnPreview').disabled = false;
+        if(directToBlogger) document.getElementById('btnPreview').disabled = false;
         btnMain.innerText = directToBlogger ? "🚀 Generate & Langsung Draft" : "✨ Preview di Editor";
     }
 
-    // --- POST TO BLOGGER (CORE FUNCTION) ---
+    // --- POST TO BLOGGER ---
     async function postToBlogger(fromEditor = false) {
         let judul, konten, tags;
-
         if (fromEditor) {
             judul = document.getElementById('judul').value;
             konten = tinymce.get('kontenEditor').getContent();
@@ -347,8 +374,6 @@
             const catM = document.getElementById('cat_manual').value;
             tags = (catS === 'NEW' && catM) ? catM.split(',') : (catS ? [catS] : []);
         }
-        // Jika dari Direct Mode, parameter dikirim langsung ke sendToBloggerAPI
-        
         await sendToBloggerAPI(judul, konten, tags, true);
     }
 
@@ -364,36 +389,27 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    kind: 'blogger#post', 
-                    title: judul, 
-                    content: konten, 
-                    labels: tags,
-                    status: isDraft ? 'DRAFT' : 'LIVE' 
+                    kind: 'blogger#post', title: judul, content: konten, labels: tags, status: isDraft ? 'DRAFT' : 'LIVE' 
                 })
             });
             const d = await res.json();
             
             if(res.ok) {
                 addToHistory(judul, d.url || `https://draft.blogger.com/blog/posts/${blogId}`, isDraft);
-                
-                // Pesan Sukses Elegan
                 document.getElementById('status_msg').innerHTML = `
                     <div class='alert alert-success'>
                         ✅ <b>Sukses!</b> Artikel "<i>${judul}</i>" tersimpan di Draft.<br>
                         <a href="https://draft.blogger.com/blog/posts/${blogId}" target="_blank" style="font-weight:bold;">👉 Buka Draft Blogger</a>
                     </div>`;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                
-                // Reset Form (Opsional)
                 if(!document.getElementById('btnDirect').disabled) resetForm(); 
-
             } else { alert("Gagal Kirim: " + d.error.message); }
         } catch(e) { alert("Koneksi Error"); }
         
         if(btn) { btn.innerText = "📂 Simpan Editor ke DRAFT"; btn.disabled = false; }
     }
 
-    // --- HELPER FUNCTIONS ---
+    // --- HELPER ---
     function switchProvider(provider) {
         currentProvider = provider;
         const input = document.getElementById('api_key_input');
